@@ -1,0 +1,45 @@
+.content {
+  max-width: 34rem;
+  max-height: 92vh;
+  overflow-y: auto;
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  min-width: 0;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+.label {
+  font-size: 0.85rem;
+  color: var(--muted-foreground);
+  font-weight: 500;
+  margin-bottom: -6px;
+}
+.tip {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted-foreground);
+}
+.hint {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+.preview {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-3);
+  font-size: 0.9rem;
+}
+.pv {
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}

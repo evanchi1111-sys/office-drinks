@@ -1,0 +1,53 @@
+.page {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: var(--spacing-4);
+  padding-bottom: var(--spacing-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  min-height: 100vh;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  color: var(--primary);
+}
+.brand h1 {
+  margin: 0;
+  font-family: var(--font-family-display);
+  font-size: 1.4rem;
+  color: var(--foreground);
+}
+.tabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+.pane {
+  padding-top: var(--spacing-2);
+}
+.empty {
+  text-align: center;
+  color: var(--muted-foreground);
+  padding: var(--spacing-8) 0;
+}
+.err {
+  color: var(--error);
+}
+.lock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-12) var(--spacing-4);
+  color: var(--muted-foreground);
+  text-align: center;
+}

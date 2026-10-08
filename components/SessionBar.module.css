@@ -1,0 +1,40 @@
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+.pick {
+  display: flex;
+  gap: var(--spacing-2);
+  align-items: stretch;
+}
+.pick > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  align-items: center;
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+.label {
+  font-size: 0.85rem;
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+.hint {
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+  margin: 0;
+}

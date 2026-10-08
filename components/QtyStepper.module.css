@@ -1,0 +1,41 @@
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--card);
+  padding: 2px;
+}
+.btn {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--foreground);
+  cursor: pointer;
+}
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+.num {
+  min-width: 3.2rem;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+.num small {
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+}
