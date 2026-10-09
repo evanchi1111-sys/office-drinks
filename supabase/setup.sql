@@ -265,12 +265,8 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
-create or replace function public.od_session_delete(p_id text)
-returns jsonb language plpgsql security definer set search_path = public as $$
-begin
-  delete from public.od_sessions where id = p_id;
-  return jsonb_build_object('ok', true);
-end $$;
+-- 團不能刪除，只能結束訂購（舊版的刪除函式一併移除）
+drop function if exists public.od_session_delete(text);
 
 -- ---------- 5. 菜單與名單（需要管理密碼） ----------
 
@@ -402,7 +398,6 @@ grant execute on function public.od_order_delete(text) to anon, authenticated;
 grant execute on function public.od_session_create(text, text, jsonb) to anon, authenticated;
 grant execute on function public.od_session_set_participants(text, jsonb) to anon, authenticated;
 grant execute on function public.od_session_set_status(text, text) to anon, authenticated;
-grant execute on function public.od_session_delete(text) to anon, authenticated;
 grant execute on function public.od_admin_check(text) to anon, authenticated;
 grant execute on function public.od_shop_save(text, jsonb) to anon, authenticated;
 grant execute on function public.od_shop_delete(text, text) to anon, authenticated;

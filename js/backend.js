@@ -78,7 +78,6 @@ async function createSupabaseBackend() {
       (await rpc('od_session_create', { p_title: title, p_shop: shopId, p_participants: participants })).id,
     setParticipants: (id, participants) => rpc('od_session_set_participants', { p_id: id, p_participants: participants }),
     setStatus: (id, status) => rpc('od_session_set_status', { p_id: id, p_status: status }),
-    deleteSession: (id) => rpc('od_session_delete', { p_id: id }),
 
     adminCheck: (pw) => rpc('od_admin_check', { p_password: pw }),
     saveShop: async (pw, shop) => (await rpc('od_shop_save', { p_password: pw, p_shop: shop })).id,
@@ -247,11 +246,6 @@ function createDemoBackend() {
       const s = db.sessions.find((x) => x.id === id);
       if (!s) fail('找不到這個團');
       s.status = status;
-      return done();
-    },
-    async deleteSession(id) {
-      db.sessions = db.sessions.filter((x) => x.id !== id);
-      db.orders = db.orders.filter((x) => x.session_id !== id);
       return done();
     },
 
