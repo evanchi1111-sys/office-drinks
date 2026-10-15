@@ -19,7 +19,7 @@ function unwrap(res) {
 }
 
 const normShop = (s) => ({ ...s, sizes: s.sizes ?? [], items: s.items ?? [], toppings: s.toppings ?? [] });
-const normOrder = (o) => ({ ...o, toppings: o.toppings ?? [] });
+const normOrder = (o) => ({ ...o, toppings: o.toppings ?? [], custom: o.custom === true });
 
 export async function createBackend({ demo }) {
   return demo ? createDemoBackend() : createSupabaseBackend();
@@ -156,14 +156,23 @@ function createDemoBackend() {
     const name = txt(o?.name, 40);
     const item = txt(o?.item, 100);
     const size = txt(o?.size, 20);
+    const custom = o?.custom === true;
     if (!name) fail('請先選擇或輸入你的姓名');
-    if (!item) fail('請選一杯飲料');
+    if (!item) fail(custom ? '請輸入飲料名稱' : '請選一杯飲料');
     const shop = db.shops.find((s) => s.id === shopId);
     if (!shop) fail('這個團的飲料店已被刪除');
-    const it = shop.items.find((x) => x.n === item);
-    if (!it) fail(`「${item}」已不在菜單上`);
-    const idx = shop.sizes.indexOf(size);
-    if (idx < 0 || typeof it.p[idx] !== 'number') fail('這個規格沒有販售，請換一個規格');
+    let base;
+    if (custom) {
+      if (size && !shop.sizes.includes(size)) fail('規格不正確，請重新選擇');
+      if (typeof o.price !== 'number' || o.price < 1 || o.price > 2000) fail('請輸入這杯飲料的價格（1～2000 元）');
+      base = Math.round(o.price);
+    } else {
+      const it = shop.items.find((x) => x.n === item);
+      if (!it) fail(`「${item}」已不在菜單上，可以改用「自己輸入」`);
+      const idx = shop.sizes.indexOf(size);
+      if (idx < 0 || typeof it.p[idx] !== 'number') fail('這個規格沒有販售，請換一個規格');
+      base = it.p[idx];
+    }
     if ((o.toppings ?? []).length > 10) fail('加料最多 10 種');
     const toppings = [];
     for (const t of o.toppings ?? []) {
@@ -172,8 +181,8 @@ function createDemoBackend() {
       if (!hit) fail(`加料「${n}」已不在菜單上`);
       if (!toppings.includes(hit)) toppings.push(hit);
     }
-    return { unit: txt(o.unit, 60), name, item, size, price: it.p[idx] + toppings.reduce((s, t) => s + t.p, 0),
-      toppings: clone(toppings), sugar: txt(o.sugar, 20), ice: txt(o.ice, 20), note: txt(o.note, 100) };
+    return { unit: txt(o.unit, 60), name, item, size, price: base + toppings.reduce((s, t) => s + t.p, 0),
+      toppings: clone(toppings), sugar: txt(o.sugar, 20), ice: txt(o.ice, 20), note: txt(o.note, 100), custom };
   };
   const openSession = (id) => {
     const s = db.sessions.find((x) => x.id === id);

@@ -49,8 +49,10 @@ create table if not exists public.od_orders (
   sugar      text not null default '',
   ice        text not null default '',
   note       text not null default '',
+  custom     boolean not null default false,          -- true = 菜單上沒有、訂購人自行輸入的品項（價格由訂購人填）
   created_at timestamptz not null default now()
 );
+alter table public.od_orders add column if not exists custom boolean not null default false;
 create index if not exists od_orders_session_idx on public.od_orders (session_id, created_at);
 
 -- 管理密碼（加密儲存，網頁讀不到，只能透過下方函式驗證）
@@ -122,6 +124,7 @@ begin
 end $$;
 
 -- 依菜單算出訂單內容與價格（加料以目前菜單的加價為準）
+-- custom = true：菜單上沒有的品項（例如季節限定），品名與單杯價格由訂購人填寫
 create or replace function public.od__build_order(p_shop_id text, p_order jsonb) returns jsonb
 language plpgsql stable security definer set search_path = public as $$
 declare
@@ -129,6 +132,7 @@ declare
   v_name text := public.od__txt(p_order->'name', 40);
   v_item text := public.od__txt(p_order->'item', 100);
   v_size text := public.od__txt(p_order->'size', 20);
+  v_custom boolean := coalesce(p_order->'custom' = 'true'::jsonb, false);
   v_idx int;
   v_menu jsonb;
   v_base int;
@@ -139,16 +143,24 @@ declare
 begin
   if coalesce(jsonb_typeof(p_order), '') <> 'object' then return public.od__fail('訂單格式錯誤'); end if;
   if v_name = '' then return public.od__fail('請先選擇或輸入你的姓名'); end if;
-  if v_item = '' then return public.od__fail('請選一杯飲料'); end if;
+  if v_item = '' then return public.od__fail(case when v_custom then '請輸入飲料名稱' else '請選一杯飲料' end); end if;
   select * into s from public.od_shops where id = p_shop_id;
   if not found then return public.od__fail('這個團的飲料店已被刪除'); end if;
-  select (t.ord - 1)::int into v_idx from jsonb_array_elements_text(s.sizes) with ordinality t(v, ord) where t.v = v_size limit 1;
-  select e into v_menu from jsonb_array_elements(s.items) e where e->>'n' = v_item limit 1;
-  if v_menu is null then return public.od__fail(format('「%s」已不在菜單上', v_item)); end if;
-  if v_idx is null or coalesce(jsonb_typeof(v_menu->'p'->v_idx), '') <> 'number' then
-    return public.od__fail('這個規格沒有販售，請換一個規格');
+  if v_custom then
+    if v_size <> '' and not (s.sizes ? v_size) then return public.od__fail('規格不正確，請重新選擇'); end if;
+    if coalesce(jsonb_typeof(p_order->'price'), '') <> 'number' or (p_order->>'price')::numeric not between 1 and 2000 then
+      return public.od__fail('請輸入這杯飲料的價格（1～2000 元）');
+    end if;
+    v_base := round((p_order->>'price')::numeric)::int;
+  else
+    select (t.ord - 1)::int into v_idx from jsonb_array_elements_text(s.sizes) with ordinality t(v, ord) where t.v = v_size limit 1;
+    select e into v_menu from jsonb_array_elements(s.items) e where e->>'n' = v_item limit 1;
+    if v_menu is null then return public.od__fail(format('「%s」已不在菜單上，可以改用「自己輸入」', v_item)); end if;
+    if v_idx is null or coalesce(jsonb_typeof(v_menu->'p'->v_idx), '') <> 'number' then
+      return public.od__fail('這個規格沒有販售，請換一個規格');
+    end if;
+    v_base := (v_menu->'p'->>v_idx)::int;
   end if;
-  v_base := (v_menu->'p'->>v_idx)::int;
   if coalesce(jsonb_typeof(coalesce(p_order->'toppings', '[]'::jsonb)), '') <> 'array' then return public.od__fail('加料格式錯誤'); end if;
   if jsonb_array_length(coalesce(p_order->'toppings', '[]'::jsonb)) > 10 then return public.od__fail('加料最多 10 種'); end if;
   for v_t in select * from jsonb_array_elements(coalesce(p_order->'toppings', '[]'::jsonb)) loop
@@ -164,7 +176,7 @@ begin
     'unit', public.od__txt(p_order->'unit', 60), 'name', v_name, 'item', v_item, 'size', v_size,
     'price', v_base, 'toppings', v_tops,
     'sugar', public.od__txt(p_order->'sugar', 20), 'ice', public.od__txt(p_order->'ice', 20),
-    'note', public.od__txt(p_order->'note', 100));
+    'note', public.od__txt(p_order->'note', 100), 'custom', v_custom);
 end $$;
 
 -- 檢查參加成員名單
@@ -197,9 +209,9 @@ begin
   o := public.od__build_order(v.shop_id, p_order);
   if not (o->>'ok')::boolean then return o; end if;
   for i in 1..p_qty loop
-    insert into public.od_orders (id, session_id, unit, name, item, size, price, toppings, sugar, ice, note)
+    insert into public.od_orders (id, session_id, unit, name, item, size, price, toppings, sugar, ice, note, custom)
     values (public.od__id(12), v.id, o->>'unit', o->>'name', o->>'item', o->>'size', (o->>'price')::int,
-            o->'toppings', o->>'sugar', o->>'ice', o->>'note');
+            o->'toppings', o->>'sugar', o->>'ice', o->>'note', (o->>'custom')::boolean);
   end loop;
   return jsonb_build_object('ok', true, 'count', p_qty, 'price', (o->>'price')::int);
 end $$;
@@ -214,7 +226,8 @@ begin
   o := public.od__build_order(v.shop_id, p_order);
   if not (o->>'ok')::boolean then return o; end if;
   update public.od_orders set unit = o->>'unit', name = o->>'name', item = o->>'item', size = o->>'size',
-    price = (o->>'price')::int, toppings = o->'toppings', sugar = o->>'sugar', ice = o->>'ice', note = o->>'note'
+    price = (o->>'price')::int, toppings = o->'toppings', sugar = o->>'sugar', ice = o->>'ice', note = o->>'note',
+    custom = (o->>'custom')::boolean
   where id = p_id;
   return jsonb_build_object('ok', true);
 end $$;
