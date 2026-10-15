@@ -21,11 +21,12 @@
 - 杯價由資料庫依菜單計算（含加料），不採用瀏覽器送來的價格。
 - 團結束訂購後，訂單不能再新增、修改或刪除（需先「重新開放」）。
 - 菜單與名單需要管理密碼；密碼加密儲存，錯 5 次鎖 5 分鐘。
-- 開團、結束訂購不需要密碼。團不能刪除，只能「結束訂購」，訂單紀錄會一直保留。
+- 開團、結束訂購不需要密碼；已結束的團可由管理者刪除（需管理密碼，訂單一併刪除）。
+- 訂購送出前會跳出確認視窗（訂購人、飲料、杯數、金額）。
 
 ## 設定
 可與桌球系統共用同一個 Supabase 專案（本系統資料表以 `od_` 開頭）。
-1. **SQL Editor** → **New query** → 貼上 [`supabase/setup.sql`](supabase/setup.sql) → **Run**。
+1. **SQL Editor** → **New query** → 貼上 [`supabase/setup.sql`](supabase/setup.sql) → **Run**。（2026-10-15 以前建立的，另外執行一次 [`upgrade-01-delete-closed-session.sql`](supabase/upgrade-01-delete-closed-session.sql)）
 2. 設定管理密碼：把 `setup.sql` 最後一行（第 6 段）去掉開頭的 `--`、換成你的密碼，單獨執行一次。之後要換密碼也一樣。
 3. [`js/config.js`](js/config.js) 填入 Project URL 與 publishable（anon）key。
 4. 倉庫 **Settings** → **Pages** → Branch `main`、`/ (root)`。

@@ -226,3 +226,12 @@ h3.row-h { margin-bottom: .6rem; }
 .toast.err { background: var(--danger); color: #fff; }
 .toast.out { opacity: 0; }
 @keyframes tin { from { transform: translateY(8px); opacity: 0; } }
+
+/* ---------- 送出前確認 ---------- */
+.confirm-list { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; margin: 8px 0 0; background: var(--surface); border-radius: 10px; padding: 14px; }
+.confirm-list dt { color: var(--muted); font-size: .9rem; }
+.confirm-list dd { margin: 0; font-weight: 500; }
+.confirm-list .money { font-size: 1.15rem; }
+.confirm-list small { color: var(--muted); font-weight: 400; margin-left: 4px; }
+.warn { background: var(--accent-soft); color: var(--accent); border-radius: 10px; padding: 8px 12px; margin: 8px 0; font-size: .9rem; }
+.warn.bad { background: var(--danger-soft); color: var(--danger); }

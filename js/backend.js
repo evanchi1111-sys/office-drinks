@@ -81,6 +81,7 @@ async function createSupabaseBackend() {
 
     adminCheck: (pw) => rpc('od_admin_check', { p_password: pw }),
     saveShop: async (pw, shop) => (await rpc('od_shop_save', { p_password: pw, p_shop: shop })).id,
+    deleteSession: (pw, id) => rpc('od_session_delete', { p_password: pw, p_id: id }),
     deleteShop: (pw, id) => rpc('od_shop_delete', { p_password: pw, p_id: id }),
     saveRoster: (pw, units) => rpc('od_roster_save', { p_password: pw, p_units: units }),
   };
@@ -246,6 +247,15 @@ function createDemoBackend() {
       const s = db.sessions.find((x) => x.id === id);
       if (!s) fail('找不到這個團');
       s.status = status;
+      return done();
+    },
+    async deleteSession(pw, id) {
+      admin(pw);
+      const s = db.sessions.find((x) => x.id === id);
+      if (!s) return { ok: true };
+      if (s.status !== 'closed') fail('只能刪除已結束的團，請先按「結束訂購」');
+      db.sessions = db.sessions.filter((x) => x.id !== id);
+      db.orders = db.orders.filter((x) => x.session_id !== id);
       return done();
     },
 

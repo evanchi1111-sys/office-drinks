@@ -265,7 +265,7 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
--- 團不能刪除，只能結束訂購（舊版的刪除函式一併移除）
+-- 舊版不需密碼的刪除函式一併移除；刪除團改在第 5 段，需要管理密碼且只能刪已結束的團
 drop function if exists public.od_session_delete(text);
 
 -- ---------- 5. 菜單與名單（需要管理密碼） ----------
@@ -348,6 +348,19 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
+-- 刪除團（含訂單）：需要管理密碼，且只能刪「已結束」的團
+create or replace function public.od_session_delete(p_password text, p_id text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare e text := public.od__check_admin(p_password); v public.od_sessions;
+begin
+  if e is not null then return public.od__fail(e, 'admin'); end if;
+  select * into v from public.od_sessions where id = p_id;
+  if not found then return jsonb_build_object('ok', true); end if;
+  if v.status <> 'closed' then return public.od__fail('只能刪除已結束的團，請先按「結束訂購」'); end if;
+  delete from public.od_sessions where id = p_id;
+  return jsonb_build_object('ok', true);
+end $$;
+
 -- 儲存整份名單：依順序寫入，清單裡沒有的單位會被刪除
 create or replace function public.od_roster_save(p_password text, p_units jsonb)
 returns jsonb language plpgsql security definer set search_path = public as $$
@@ -398,6 +411,7 @@ grant execute on function public.od_order_delete(text) to anon, authenticated;
 grant execute on function public.od_session_create(text, text, jsonb) to anon, authenticated;
 grant execute on function public.od_session_set_participants(text, jsonb) to anon, authenticated;
 grant execute on function public.od_session_set_status(text, text) to anon, authenticated;
+grant execute on function public.od_session_delete(text, text) to anon, authenticated;
 grant execute on function public.od_admin_check(text) to anon, authenticated;
 grant execute on function public.od_shop_save(text, jsonb) to anon, authenticated;
 grant execute on function public.od_shop_delete(text, text) to anon, authenticated;
