@@ -378,7 +378,7 @@ begin
   end loop;
   -- 先刪掉清單裡沒有的單位，再把要保留的單位改成暫時名稱，避免改名互換或同名新增時撞到 unique
   delete from public.od_units
-  where id not in (select x->>'id' from jsonb_array_elements(p_units) x where x->>'id' is not null);
+  where id not in (select elem->>'id' from jsonb_array_elements(p_units) elem where elem->>'id' is not null);
   update public.od_units set name = '~' || id where id is not null;
   for x in select * from jsonb_array_elements(p_units) loop
     n := public.od__txt(x->'name', 60);
