@@ -27,14 +27,28 @@
 ## 設定
 可與桌球系統共用同一個 Supabase 專案（本系統資料表以 `od_` 開頭）。
 1. **SQL Editor** → **New query** → 貼上 [`supabase/setup.sql`](supabase/setup.sql) → **Run**。（2026-10-15 以前建立的，另外依序執行 `supabase/upgrade-*.sql`）
-2. 設定管理密碼：把 `setup.sql` 最後一行（第 6 段）去掉開頭的 `--`、換成你的密碼，單獨執行一次。之後要換密碼也一樣。
+2. 設定管理密碼：把 `setup.sql` 最後一行（第 6 段）去掉開頭的 `--`、換成你的密碼，單獨執行一次。之後要換密碼也一樣。範例（把 `新密碼` 換成你的密碼）：
+   ```sql
+   update public.od_admin set pw_hash = extensions.crypt('新密碼', extensions.gen_salt('bf')), failed = 0, locked_until = null where id = 1;
+   ```
 3. [`js/config.js`](js/config.js) 填入 Project URL 與 publishable（anon）key。
 4. 倉庫 **Settings** → **Pages** → Branch `main`、`/ (root)`。
 
 ## 檔案
 | 檔案 | 用途 |
 |---|---|
+| `index.html` | 網頁入口 |
+| `css/style.css` | 版面樣式 |
+| `js/config.js` | Supabase 連線設定（Project URL、publishable key） |
 | `js/app.js` | 畫面與操作 |
 | `js/logic.js` | 彙總、未選購名單、常點的、分發單、菜單／名單解析 |
 | `js/backend.js` | 資料存取（Supabase／示範模式） |
 | `supabase/setup.sql` | 資料表、安全規則、資料庫函式、即時同步 |
+| `supabase/upgrade-*.sql` | 舊版升級用，依編號順序執行 |
+
+## 相關專案
+不想設管理密碼、每個空間一個專屬連結的版本：[office-drinks-lite](https://github.com/evanchi1111-sys/office-drinks-lite)（<https://evanchi1111-sys.github.io/office-drinks-lite/>）。
+
+## 授權
+
+以 [MIT 授權](LICENSE) 釋出，Copyright (c) 2026 evanchi1111-sys。
