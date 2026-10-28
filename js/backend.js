@@ -18,8 +18,9 @@ function unwrap(res) {
   return res;
 }
 
-const normShop = (s) => ({ ...s, sizes: s.sizes ?? [], items: s.items ?? [], toppings: s.toppings ?? [] });
-const normOrder = (o) => ({ ...o, toppings: o.toppings ?? [], custom: o.custom === true });
+const normShop = (s) => ({ ...s, kind: s.kind === 'meal' ? 'meal' : 'drink', sizes: s.sizes ?? [], items: s.items ?? [], toppings: s.toppings ?? [] });
+const normSession = (s) => ({ ...s, extra_shop_ids: s.extra_shop_ids ?? [] });
+const normOrder = (o) => ({ ...o, shop_id: o.shop_id ?? '', toppings: o.toppings ?? [], custom: o.custom === true });
 
 export async function createBackend({ demo }) {
   return demo ? createDemoBackend() : createSupabaseBackend();
@@ -57,7 +58,7 @@ async function createSupabaseBackend() {
       return {
         shops: check(shops).map(normShop),
         units: check(units).map((u) => ({ ...u, members: u.members ?? [] })),
-        sessions: check(sessions),
+        sessions: check(sessions).map(normSession),
         orders: orders.map(normOrder),
       };
     },
@@ -74,8 +75,9 @@ async function createSupabaseBackend() {
     updateOrder: (id, order) => rpc('od_order_update', { p_id: id, p_order: order }),
     deleteOrder: (id) => rpc('od_order_delete', { p_id: id }),
 
-    createSession: async (title, shopId, participants) =>
-      (await rpc('od_session_create', { p_title: title, p_shop: shopId, p_participants: participants })).id,
+    createSession: async (title, shopIds, participants) =>
+      (await rpc('od_session_create', { p_title: title, p_shop: shopIds[0], p_participants: participants, p_extra_shops: shopIds.slice(1) })).id,
+    setShops: (id, shopIds) => rpc('od_session_set_shops', { p_id: id, p_shops: shopIds }),
     setParticipants: (id, participants) => rpc('od_session_set_participants', { p_id: id, p_participants: participants }),
     setStatus: (id, status) => rpc('od_session_set_status', { p_id: id, p_status: status }),
 
@@ -98,7 +100,7 @@ function createDemoBackend() {
   const db = {
     shops: [
       {
-        id: 'demo-shop-1', name: '示範茶飲', phone: '04-1234-5678', created_at: at(0),
+        id: 'demo-shop-1', name: '示範茶飲', phone: '04-1234-5678', created_at: at(0), kind: 'drink',
         sizes: ['中杯', '大杯'],
         items: [
           { n: '珍珠奶茶', p: [45, 55] }, { n: '四季春青茶', p: [30, 35] }, { n: '檸檬綠茶', p: [40, 50] },
@@ -108,8 +110,27 @@ function createDemoBackend() {
         toppings: [{ n: '珍珠', p: 10 }, { n: '椰果', p: 10 }, { n: '仙草凍', p: 0 }],
       },
       {
-        id: 'demo-shop-2', name: '示範果汁', phone: '', created_at: at(1),
+        id: 'demo-shop-2', name: '示範果汁', phone: '', created_at: at(1), kind: 'drink',
         sizes: ['大杯'], items: [{ n: '柳橙汁', p: [60] }, { n: '芒果冰沙', p: [80] }], toppings: [],
+      },
+      {
+        id: 'demo-shop-3', name: '示範炸雞烤肉', phone: '04-8765-4321', created_at: at(2), kind: 'meal',
+        sizes: ['小份', '大份'],
+        items: [
+          { n: '鹽酥雞', p: [60, 90], c: '炸物' }, { n: '甜不辣', p: [40, 60], c: '炸物' }, { n: '地瓜薯條', p: [50, 75], c: '炸物' },
+          { n: '炸雞排', p: [75, null], c: '炸物' }, { n: '豬五花串', p: [35, null], c: '烤肉' }, { n: '雞腿肉串', p: [40, null], c: '烤肉' },
+          { n: '玉米筍串', p: [30, null], c: '烤肉' },
+        ],
+        toppings: [{ n: '加辣', p: 0 }, { n: '加蛋', p: 10 }],
+      },
+      {
+        id: 'demo-shop-4', name: '示範蛋糕點心', phone: '', created_at: at(3), kind: 'meal',
+        sizes: ['單個'],
+        items: [
+          { n: '草莓蛋糕', p: [120], c: '蛋糕' }, { n: '提拉米蘇', p: [110], c: '蛋糕' }, { n: '布丁', p: [45], c: '點心' },
+          { n: '司康', p: [55], c: '點心' }, { n: '檸檬塔', p: [90], c: '點心' },
+        ],
+        toppings: [],
       },
     ],
     units: [
@@ -118,8 +139,8 @@ function createDemoBackend() {
       { id: 'u3', name: '資訊室', members: ['周子豪', '許雅婷'], ord: 2 },
     ],
     sessions: [
-      { id: 'demo-old', title: '上週飲料團', shop_id: 'demo-shop-1', shop_name: '示範茶飲', status: 'closed', participants: null, created_at: at(10) },
-      { id: 'demo-now', title: '示範飲料團', shop_id: 'demo-shop-1', shop_name: '示範茶飲', status: 'open', participants: null, created_at: at(3000) },
+      { id: 'demo-old', title: '上週飲料團', shop_id: 'demo-shop-1', shop_name: '示範茶飲', extra_shop_ids: [], status: 'closed', participants: null, created_at: at(10) },
+      { id: 'demo-now', title: '示範飲料＋餐點團', shop_id: 'demo-shop-1', shop_name: '示範茶飲', extra_shop_ids: ['demo-shop-3'], status: 'open', participants: null, created_at: at(3000) },
     ],
     orders: [],
   };
@@ -133,9 +154,11 @@ function createDemoBackend() {
     const shop = db.shops[0];
     const it = shop.items.find((x) => x.n === item);
     const toppings = tops.map((n) => shop.toppings.find((t) => t.n === n));
-    db.orders.push({ id: uid(12), session_id: sid, unit, name, item, size, sugar, ice, note: '', toppings,
+    db.orders.push({ id: uid(12), session_id: sid, shop_id: shop.id, unit, name, item, size, sugar, ice, note: '', toppings,
       price: it.p[shop.sizes.indexOf(size)] + toppings.reduce((s, t) => s + t.p, 0), created_at: at(20 + i * 1500) });
   });
+  db.orders.push({ id: uid(12), session_id: 'demo-now', shop_id: 'demo-shop-3', unit: '資訊室', name: '周子豪', item: '鹽酥雞', size: '大份',
+    sugar: '', ice: '', note: '不要九層塔', toppings: [{ n: '加辣', p: 0 }], price: 90, custom: false, created_at: at(3100) });
 
   const listeners = new Set();
   const emit = () => setTimeout(() => listeners.forEach((fn) => fn()), 30);
@@ -158,13 +181,13 @@ function createDemoBackend() {
     const size = txt(o?.size, 20);
     const custom = o?.custom === true;
     if (!name) fail('請先選擇或輸入你的姓名');
-    if (!item) fail(custom ? '請輸入飲料名稱' : '請選一杯飲料');
+    if (!item) fail(custom ? '請輸入品名' : '請先選一個品項');
     const shop = db.shops.find((s) => s.id === shopId);
-    if (!shop) fail('這個團的飲料店已被刪除');
+    if (!shop) fail('這個團的店家已被刪除');
     let base;
     if (custom) {
       if (size && !shop.sizes.includes(size)) fail('規格不正確，請重新選擇');
-      if (typeof o.price !== 'number' || o.price < 1 || o.price > 2000) fail('請輸入這杯飲料的價格（1～2000 元）');
+      if (typeof o.price !== 'number' || o.price < 1 || o.price > 2000) fail('請輸入這個品項的價格（1～2000 元）');
       base = Math.round(o.price);
     } else {
       const it = shop.items.find((x) => x.n === item);
@@ -182,7 +205,13 @@ function createDemoBackend() {
       if (!toppings.includes(hit)) toppings.push(hit);
     }
     return { unit: txt(o.unit, 60), name, item, size, price: base + toppings.reduce((s, t) => s + t.p, 0),
-      toppings: clone(toppings), sugar: txt(o.sugar, 20), ice: txt(o.ice, 20), note: txt(o.note, 100), custom };
+      toppings: clone(toppings), sugar: shop.kind === 'meal' ? '' : txt(o.sugar, 20), ice: shop.kind === 'meal' ? '' : txt(o.ice, 20), note: txt(o.note, 100), custom };
+  };
+  // 訂單指定的店家必須是這個團的店家；沒指定就是主要店家
+  const shopFor = (s, o) => {
+    const id = txt(o?.shop_id, 40) || s.shop_id;
+    if (id !== s.shop_id && !s.extra_shop_ids.includes(id)) fail('這家店不在這個團裡');
+    return id;
   };
   const openSession = (id) => {
     const s = db.sessions.find((x) => x.id === id);
@@ -216,16 +245,18 @@ function createDemoBackend() {
 
     async addOrder(sessionId, order, qty) {
       const s = openSession(sessionId);
-      if (!(qty >= 1 && qty <= 30)) fail('杯數需在 1～30 之間');
-      const o = buildOrder(s.shop_id, order);
-      for (let i = 0; i < qty; i++) db.orders.push({ id: uid(12), session_id: s.id, ...clone(o), created_at: now() });
+      if (!(qty >= 1 && qty <= 30)) fail('數量需在 1～30 之間');
+      const shopId = shopFor(s, order);
+      const o = buildOrder(shopId, order);
+      for (let i = 0; i < qty; i++) db.orders.push({ id: uid(12), session_id: s.id, shop_id: shopId, ...clone(o), created_at: now() });
       return done({ count: qty, price: o.price });
     },
     async updateOrder(id, order) {
       const s = sessionOf(id);
       if (!s) fail('找不到這筆訂單');
       if (s.status !== 'open') fail('這個團已經結束訂購了');
-      Object.assign(db.orders.find((x) => x.id === id), buildOrder(s.shop_id, order));
+      const shopId = shopFor(s, order);
+      Object.assign(db.orders.find((x) => x.id === id), { shop_id: shopId }, buildOrder(shopId, order));
       return done();
     },
     async deleteOrder(id) {
@@ -236,15 +267,29 @@ function createDemoBackend() {
       return done();
     },
 
-    async createSession(title, shopId, parts) {
+    async createSession(title, shopIds, parts) {
       const t = txt(title, 60);
       if (!t) fail('請輸入團名');
-      const shop = db.shops.find((s) => s.id === shopId);
-      if (!shop) fail('找不到這家飲料店');
+      const shop = db.shops.find((s) => s.id === shopIds[0]);
+      if (!shop) fail('找不到這家店');
+      const extra = [...new Set(shopIds.slice(1))].filter((x) => x !== shop.id);
+      if (extra.some((x) => !db.shops.some((s) => s.id === x))) fail('加開的店家不存在，請重新選擇');
       const id = uid(10);
-      db.sessions.push({ id, title: t, shop_id: shop.id, shop_name: shop.name, status: 'open', participants: participants(parts), created_at: now() });
+      db.sessions.push({ id, title: t, shop_id: shop.id, shop_name: shop.name, extra_shop_ids: extra, status: 'open', participants: participants(parts), created_at: now() });
       emit();
       return id;
+    },
+    async setShops(id, shopIds) {
+      const s = db.sessions.find((x) => x.id === id);
+      if (!s) fail('找不到這個團');
+      const shop = db.shops.find((x) => x.id === shopIds[0]);
+      if (!shop) fail('請至少選一家店');
+      const extra = [...new Set(shopIds.slice(1))].filter((x) => x !== shop.id);
+      if (extra.some((x) => !db.shops.some((y) => y.id === x))) fail('店家不存在，請重新選擇');
+      const used = db.orders.find((o) => o.session_id === id && o.shop_id && o.shop_id !== shop.id && !extra.includes(o.shop_id));
+      if (used) fail(`「${db.shops.find((x) => x.id === used.shop_id)?.name ?? '這家店'}」已經有人訂了，不能從這個團移除`);
+      Object.assign(s, { shop_id: shop.id, shop_name: shop.name, extra_shop_ids: extra });
+      return done();
     },
     async setParticipants(id, parts) {
       const s = db.sessions.find((x) => x.id === id);
@@ -277,21 +322,23 @@ function createDemoBackend() {
       const sizes = shop.sizes.map((s) => txt(s, 20) || '規格');
       const items = (shop.items ?? []).filter((i) => txt(i.n, 100)).map((i) => ({
         n: txt(i.n, 100), p: sizes.map((_, k) => (typeof i.p[k] === 'number' && i.p[k] >= 0 ? Math.round(i.p[k]) : null)),
+        ...(txt(i.c, 20) ? { c: txt(i.c, 20) } : {}),
       }));
       const toppings = (shop.toppings ?? []).filter((t) => txt(t.n, 40)).map((t) => ({
         n: txt(t.n, 40), p: typeof t.p === 'number' ? Math.min(1000, Math.max(0, Math.round(t.p))) : 0,
       }));
       if (items.length > 500) fail('品項最多 500 個');
       const row = { name, phone: txt(shop.phone, 30), sizes, items, toppings };
+      if (shop.kind === 'drink' || shop.kind === 'meal') row.kind = shop.kind;
       if (shop.id) {
         const hit = db.shops.find((s) => s.id === shop.id);
-        if (!hit) fail('找不到這家飲料店，可能已被刪除');
+        if (!hit) fail('找不到這家店，可能已被刪除');
         Object.assign(hit, row);
         emit();
         return hit.id;
       }
       const id = uid(10);
-      db.shops.push({ id, ...row, created_at: now() });
+      db.shops.push({ kind: 'drink', id, ...row, created_at: now() });
       emit();
       return id;
     },
